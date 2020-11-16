@@ -9,6 +9,9 @@ import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 import com.sun.org.apache.xerces.internal.parsers.SecurityConfiguration;
 
+/**
+ * Cors 설정.
+ */
 @Configuration
 @EnableWebFlux
 @Import({CorsConfiguration.class, SecurityConfiguration.class})
