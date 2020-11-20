@@ -43,9 +43,15 @@ public class RequestHandler {
         // conversion to ConnectableFlux.
         // Alternative to "publish is "replay"
         // which resends all past received Kafka Messages to each new observer
+        // replay : 구성 가능한 제한 (시간 및 버퍼 크기)까지 첫 번째 구독을 통해 표시되는 데이터를 버퍼링합니다. 후속 구독자에게 데이터를 재생합니다.
+        // publish : 이러한 요청을 소스로 전달하여 역압 측면에서 다양한 가입자의 요구를 동적으로 존중하려고합니다. 특히, 구독자가의 보류중인 수요를 가지고있는 경우 0게시는 소스에 대한 요청을 일시 중지합니다.
         eventPublisher = kafkaReceiver.receive()
-                .map(consumerRecord -> ServerSentEvent.builder(consumerRecord.value()).build())
-                .publish();
+                .map(consumerRecord -> {
+                        System.out.println("consumer => "+consumerRecord.value());
+                    return ServerSentEvent.builder(consumerRecord.value()).build();
+                })
+                .replay(10);
+
 
         // subscribes to the KafkaReceiver -> starts consumption (without observers attached)
         eventPublisher.connect();
@@ -66,7 +72,7 @@ public class RequestHandler {
         System.out.println("==========start===========");
         List<MediaType> list = serverRequest.headers().accept();
         for (int i = 0; i < list.size(); i++) {
-            System.out.println(list.get(i));
+            System.out.println("==>"+list.get(i));
         }
 
         return ServerResponse.status(HttpStatus.OK).body(BodyInserters.fromServerSentEvents(eventPublisher));

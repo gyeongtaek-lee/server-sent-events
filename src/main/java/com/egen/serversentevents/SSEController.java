@@ -32,10 +32,15 @@ import reactor.kafka.receiver.ReceiverRecord;
 @RequestMapping(path = "/sse")
 public class SSEController {
 
-    @Autowired
+    final
     KafkaReceiver<String, String> kafkaReceiver;
 
     private ConnectableFlux<ServerSentEvent<String>> eventPublisher;
+
+    @Autowired
+    public SSEController(KafkaReceiver<String, String> kafkaReceiver) {
+        this.kafkaReceiver = kafkaReceiver;
+    }
 
     /**
      * MediaType.TEXT_EVENT_STREAM_VALUE를 컨텐츠 유형으로 사용.
@@ -47,13 +52,13 @@ public class SSEController {
      * curl.exe -L -X GET 'localhost:8080/sse' -H 'Content-Type: text/event-stream; charset=UTF-8' -H 'Accept: text/event-stream; charset=UTF-8'
      */
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-//    Flux getEventsFlux(){
-    Mono<ServerResponse> getEventsFlux(){
+    Flux getEventsFlux(){
+//    Mono<ServerResponse> getEventsFlux(){
 
-        eventPublisher = kafkaReceiver.receive().map(consumerRecord -> ServerSentEvent.builder(consumerRecord.value()).build()).publish();
+//        eventPublisher = kafkaReceiver.receive().map(consumerRecord -> ServerSentEvent.builder(consumerRecord.value()).build()).publish();
 
         // subscribes to the KafkaReceiver -> starts consumption (without observers attached)
-        eventPublisher.connect();
+//        eventPublisher.connect();
 
         // reactive flux 형으로 message key, value instance
         Flux<ReceiverRecord<String, String>> kafkaFlux = kafkaReceiver.receive();
@@ -64,9 +69,9 @@ public class SSEController {
         // 이후 수신자가 Flux를 종료하는 시점에 가능한 경우 모든 승인이 된 offset을 커밋한다. 즉, acknowledge는 커밋이 될 수 있는 상태로 승인을 해주는 행위이다.
         // map의 loop를 통해 ReceiverRecord return...
         // checkpoint : 시퀀스(Flux)가 신호를 발생하는 과정에서 익셉션이 발생하면 어떻게 될까? 시퀀스가 여러 단게를 거쳐 변환한다면 어떤 시점에 익셉션이 발생했는지 단번에 찾기 힘들 수도 있다. 이럴 때 도움이 되는 것이 체크포인트이다.
-//        return kafkaFlux.checkpoint("Messages are started begin consumed").log().doOnNext(r -> r.receiverOffset().acknowledge())
-//                .map(r -> r.key() + " : " + r.value()).checkpoint("Messages are done consumed");
-        return ServerResponse.status(HttpStatus.OK).body(BodyInserters.fromServerSentEvents(eventPublisher));
+        return kafkaFlux.checkpoint("Messages are started begin consumed").log().doOnNext(r -> r.receiverOffset().acknowledge())
+                .map(r -> r.key() + " : " + r.value()).checkpoint("Messages are done consumed");
+//        return ServerResponse.status(HttpStatus.OK).body(BodyInserters.fromServerSentEvents(eventPublisher));
 
     }
 
